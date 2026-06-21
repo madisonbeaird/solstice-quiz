@@ -409,7 +409,7 @@
   }
 
   /* Host login overlay */
-  #host-login {
+  #host-login, #present-login {
     position: fixed;
     inset: 0;
     background: rgba(13,13,26,0.97);
@@ -419,7 +419,7 @@
     z-index: 100;
   }
 
-  #host-login.hidden { display: none; }
+  #host-login.hidden, #present-login.hidden { display: none; }
 
   .host-login-box {
     max-width: 340px;
@@ -663,6 +663,80 @@
   .host-nav-btn:hover { border-color: var(--gold); color: var(--cream); }
   .host-nav-btn.active-section { background: var(--burgundy); border-color: var(--gold); color: var(--gold-light); }
 
+  /* ── PRESENTATION SCREEN ── */
+  #present-screen {
+    flex-direction: row;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .present-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 4vh 5vw;
+    gap: 1.2rem;
+    overflow-y: auto;
+  }
+
+  .present-eyebrow {
+    font-size: 0.9rem;
+    letter-spacing: 0.3em;
+    color: var(--gold);
+    text-transform: uppercase;
+  }
+
+  .present-qnum {
+    font-size: 1rem;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .present-question {
+    font-family: 'Libre Baskerville', serif;
+    font-size: clamp(1.8rem, 4vw, 3.2rem);
+    font-weight: 700;
+    color: var(--cream);
+    line-height: 1.25;
+  }
+
+  .present-opts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+
+  .present-opt {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.2rem 1.5rem;
+    background: var(--bg-card);
+    border: 1px solid rgba(201,168,76,0.35);
+    border-radius: 10px;
+    font-size: clamp(1rem, 1.8vw, 1.4rem);
+    color: var(--cream);
+    line-height: 1.3;
+  }
+
+  .present-opt-letter {
+    width: 2.4rem;
+    height: 2.4rem;
+    border-radius: 50%;
+    border: 1.5px solid var(--gold);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: var(--gold);
+    flex-shrink: 0;
+  }
+
+  #present-screen .host-right { width: 340px; }
+
   /* scrollbar */
   ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
@@ -671,6 +745,7 @@
   @media (max-width: 500px) {
     #quiz-screen { padding: 1.2rem 1rem 1.5rem; }
     .host-opts { grid-template-columns: 1fr; }
+    .present-opts { grid-template-columns: 1fr; }
   }
 </style>
 </head>
@@ -760,6 +835,39 @@
   </div>
 </div>
 
+<!-- ══ PRESENTATION SCREEN ══ -->
+<div id="present-screen" class="screen">
+  <!-- Login overlay -->
+  <div id="present-login">
+    <div class="host-login-box">
+      <h2>Presentation Access</h2>
+      <input id="present-pw-input" class="username-input" type="password" placeholder="Password" style="margin-bottom:1rem">
+      <button id="present-pw-btn" class="btn-primary">Enter</button>
+      <p id="present-pw-error" class="error-msg"></p>
+    </div>
+  </div>
+
+  <!-- Left: current question (no answer) -->
+  <div class="present-main">
+    <div class="present-eyebrow">✦ Winter Solstice Quiz ✦</div>
+    <div id="present-bonus" class="bonus-badge" style="display:none">✦ Bonus Round</div>
+    <div class="present-qnum" id="present-qnum">Question 1 / 21</div>
+    <h1 class="present-question" id="present-question"></h1>
+    <div class="present-opts" id="present-opts"></div>
+  </div>
+
+  <!-- Right: live leaderboard -->
+  <div class="host-right">
+    <div class="host-right-header">
+      <div class="host-right-title">✦ Live Leaderboard</div>
+      <div class="host-player-count" id="present-player-count">Waiting for players...</div>
+    </div>
+    <div class="host-players" id="present-players">
+      <div class="empty-state">No players yet.<br>Share the link!</div>
+    </div>
+  </div>
+</div>
+
 <script>
 const SUPABASE_URL = 'https://poopsjyrecurnfuulgzu.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBvb3BzanlyZWN1cm5mdXVsZ3p1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIwMTEyMzAsImV4cCI6MjA5NzU4NzIzMH0.rtZckQs9VZpy3v0CXlqTknEZjxdaj1ykrEqQvgWM10M';
@@ -806,6 +914,8 @@ let answers = {};
 let currentQ = 0;
 let hostFilterMode = 'all';
 let hostChannel = null;
+let controlChannel = null;
+let hostCurrentQ = 0;
 
 // ── SCREENS ──
 function show(id) {
@@ -922,11 +1032,16 @@ function calcScore() {
 
 // ── HOST ──
 const isHost = window.location.hash === '#host' || window.location.pathname.endsWith('/host') || new URLSearchParams(window.location.search).get('host') === '1';
+const isPresent = window.location.hash === '#present' || window.location.pathname.endsWith('/present') || new URLSearchParams(window.location.search).get('present') === '1';
 
 if (isHost) {
   show('host-screen');
   document.getElementById('host-pw-btn').addEventListener('click', checkHostPw);
   document.getElementById('host-pw-input').addEventListener('keydown', e => { if (e.key === 'Enter') checkHostPw(); });
+} else if (isPresent) {
+  show('present-screen');
+  document.getElementById('present-pw-btn').addEventListener('click', checkPresentPw);
+  document.getElementById('present-pw-input').addEventListener('keydown', e => { if (e.key === 'Enter') checkPresentPw(); });
 }
 
 function checkHostPw() {
@@ -946,6 +1061,18 @@ function initHost() {
       hostChannel = db.channel('players-changes')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, () => loadPlayers())
     .subscribe();
+
+  // control channel: drives the presentation view's current question
+  controlChannel = db.channel('quiz-control');
+  controlChannel
+    .on('broadcast', { event: 'request_state' }, () => broadcastCurrentQuestion())
+    .subscribe((status) => { if (status === 'SUBSCRIBED') broadcastCurrentQuestion(); });
+}
+
+function broadcastCurrentQuestion() {
+  if (controlChannel) {
+    controlChannel.send({ type: 'broadcast', event: 'set_question', payload: { q: hostCurrentQ } });
+  }
 }
 
 function renderHostSlides() {
@@ -966,6 +1093,8 @@ function renderHostSlides() {
     div.addEventListener('click', () => {
       document.querySelectorAll('.host-slide').forEach(s => s.classList.remove('current'));
       div.classList.add('current');
+      hostCurrentQ = i;
+      broadcastCurrentQuestion();
     });
     container.appendChild(div);
   });
@@ -1025,6 +1154,86 @@ function renderPlayers() {
 }
 
 window.hostFilter = hostFilter;
+
+// ── PRESENTATION ──
+function checkPresentPw() {
+  const pw = document.getElementById('present-pw-input').value;
+  if (pw === HOST_PASSWORD) {
+    document.getElementById('present-login').classList.add('hidden');
+    initPresent();
+  } else {
+    document.getElementById('present-pw-error').textContent = 'Wrong password.';
+  }
+}
+
+function initPresent() {
+  renderPresentQuestion(0);
+  loadPresentPlayers();
+  // live leaderboard
+  db.channel('present-players-changes')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, () => loadPresentPlayers())
+    .subscribe();
+  // current question, driven by the host screen
+  controlChannel = db.channel('quiz-control');
+  controlChannel
+    .on('broadcast', { event: 'set_question' }, ({ payload }) => renderPresentQuestion(payload.q))
+    .subscribe((status) => { if (status === 'SUBSCRIBED') controlChannel.send({ type: 'broadcast', event: 'request_state' }); });
+}
+
+function renderPresentQuestion(index) {
+  const q = QUESTIONS[index];
+  if (!q) return;
+  document.getElementById('present-bonus').style.display = index === 20 ? 'inline-block' : 'none';
+  document.getElementById('present-qnum').textContent = 'Question ' + (index + 1) + ' / ' + TOTAL_Q;
+  document.getElementById('present-question').textContent = q.q;
+  const opts = document.getElementById('present-opts');
+  opts.innerHTML = '';
+  q.opts.forEach((o, j) => {
+    const div = document.createElement('div');
+    div.className = 'present-opt';
+    div.innerHTML = `<span class="present-opt-letter">${LETTERS[j]}</span><span>${o}</span>`;
+    opts.appendChild(div);
+  });
+}
+
+async function loadPresentPlayers() {
+  const { data } = await db.from('players').select('*').order('score', { ascending: false });
+  allPlayers = data || [];
+  renderPresentPlayers();
+}
+
+function renderPresentPlayers() {
+  const count = allPlayers.length;
+  const done = allPlayers.filter(p => p.finished).length;
+  document.getElementById('present-player-count').textContent = count + ' player' + (count!==1?'s':'') + ' · ' + done + ' finished';
+
+  const container = document.getElementById('present-players');
+  if (allPlayers.length === 0) {
+    container.innerHTML = '<div class="empty-state">No players yet.<br>Share the link!</div>';
+    return;
+  }
+
+  container.innerHTML = '';
+  allPlayers.forEach((p, i) => {
+    const answered = Object.keys(p.answers || {}).length;
+    const pct = Math.round(answered / TOTAL_Q * 100);
+    const card = document.createElement('div');
+    card.className = 'host-player-card' + (i===0?' top':'') + (p.finished?' finished':'');
+    const rankSymbols = ['🥇','🥈','🥉'];
+    const rank = i < 3 ? `<span class="rank-badge">${rankSymbols[i]}</span>` : `<span class="rank-badge">#${i+1}</span>`;
+    card.innerHTML = `
+      <div class="host-player-top-row">
+        <div class="host-player-name">${rank}${p.username}</div>
+        <div class="host-player-score">${p.score}/${TOTAL_Q}</div>
+      </div>
+      <div class="host-player-meta">${p.finished ? '✓ Finished' : answered + ' answered · ' + pct + '%'}</div>
+      <div class="host-player-bar-track">
+        <div class="host-player-bar-fill" style="width:${pct}%"></div>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+}
 </script>
 </body>
 </html>

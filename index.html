@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Winter Solstice Quiz</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Lato:wght@300;400;700&display=swap');
 
@@ -816,6 +817,50 @@
     line-height: 1.25;
   }
 
+  .present-welcome {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 1.4rem;
+  }
+
+  .present-welcome-title {
+    font-family: 'Libre Baskerville', serif;
+    font-size: clamp(2.5rem, 6vw, 4.5rem);
+    font-weight: 700;
+    color: var(--cream);
+    line-height: 1.1;
+  }
+
+  .present-welcome-sub {
+    font-size: clamp(1rem, 2vw, 1.4rem);
+    color: var(--gold-light);
+    font-style: italic;
+    max-width: 32ch;
+  }
+
+  .present-qr {
+    background: #fff;
+    padding: 1.25rem;
+    border-radius: 16px;
+    border: 2px solid var(--gold);
+    line-height: 0;
+  }
+
+  .present-qr img {
+    width: clamp(200px, 26vw, 320px);
+    height: auto;
+    display: block;
+  }
+
+  .present-welcome-url {
+    font-size: 0.9rem;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    word-break: break-all;
+  }
+
   .present-opts {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -978,13 +1023,24 @@
     </div>
   </div>
 
-  <!-- Left: current question (no answer) -->
+  <!-- Left: welcome OR current question (no answer) -->
   <div class="present-main">
-    <div class="present-eyebrow">✦ Winter Solstice Quiz ✦</div>
-    <div id="present-bonus" class="bonus-badge" style="display:none">✦ Bonus Round</div>
-    <div class="present-qnum" id="present-qnum">Question 1 / 21</div>
-    <h1 class="present-question" id="present-question"></h1>
-    <div class="present-opts" id="present-opts"></div>
+    <!-- Welcome screen with join QR -->
+    <div id="present-welcome" class="present-welcome">
+      <div class="present-eyebrow">✦ An Evening of Festive Erudition ✦</div>
+      <h1 class="present-welcome-title">Winter Solstice Quiz</h1>
+      <p class="present-welcome-sub">Scan to join — knowledge, darkness &amp; possibly too much rum</p>
+      <div class="present-qr"><img id="present-qr-img" alt="Scan to join the quiz"></div>
+      <p class="present-welcome-url" id="present-welcome-url"></p>
+    </div>
+    <!-- Question -->
+    <div id="present-question-view" style="display:none">
+      <div class="present-eyebrow">✦ Winter Solstice Quiz ✦</div>
+      <div id="present-bonus" class="bonus-badge" style="display:none">✦ Bonus Round</div>
+      <div class="present-qnum" id="present-qnum">Question 1 / 21</div>
+      <h1 class="present-question" id="present-question"></h1>
+      <div class="present-opts" id="present-opts"></div>
+    </div>
   </div>
 
   <!-- Right: live leaderboard -->
@@ -1046,7 +1102,7 @@ let currentQ = 0;
 let hostFilterMode = 'all';
 let hostChannel = null;
 let controlChannel = null;
-let hostCurrentQ = 0;
+let hostCurrentQ = -1; // -1 = welcome screen
 
 // ── SCREENS ──
 function show(id) {
@@ -1243,9 +1299,27 @@ function broadcastCurrentQuestion() {
 function renderHostSlides() {
   const container = document.getElementById('host-slides');
   container.innerHTML = '';
+
+  // Welcome slide — selects the presentation welcome/QR screen
+  const welcome = document.createElement('div');
+  welcome.className = 'host-slide current';
+  welcome.id = 'host-slide-welcome';
+  welcome.innerHTML = `
+    <div class="host-slide-num">✦</div>
+    <div class="host-slide-q">Welcome Screen</div>
+    <div class="host-answer-reveal">Shows the join QR code for players to scan</div>
+  `;
+  welcome.addEventListener('click', () => {
+    document.querySelectorAll('.host-slide').forEach(s => s.classList.remove('current'));
+    welcome.classList.add('current');
+    hostCurrentQ = -1;
+    broadcastCurrentQuestion();
+  });
+  container.appendChild(welcome);
+
   QUESTIONS.forEach((q, i) => {
     const div = document.createElement('div');
-    div.className = 'host-slide' + (i === 0 ? ' current' : '');
+    div.className = 'host-slide';
     div.id = 'host-slide-' + i;
     div.innerHTML = `
       <div class="host-slide-num">${i+1}</div>
@@ -1332,7 +1406,8 @@ function checkPresentPw() {
 }
 
 function initPresent() {
-  renderPresentQuestion(0);
+  renderJoinQR();
+  renderPresentQuestion(-1);
   loadPresentPlayers();
   // live leaderboard
   db.channel('present-players-changes')
@@ -1345,9 +1420,27 @@ function initPresent() {
     .subscribe((status) => { if (status === 'SUBSCRIBED') controlChannel.send({ type: 'broadcast', event: 'request_state' }); });
 }
 
+function renderJoinQR() {
+  const joinUrl = location.origin + location.pathname;
+  document.getElementById('present-welcome-url').textContent = joinUrl;
+  const qr = qrcode(0, 'M');
+  qr.addData(joinUrl);
+  qr.make();
+  document.getElementById('present-qr-img').src = qr.createDataURL(10, 2);
+}
+
 function renderPresentQuestion(index) {
+  const welcome = document.getElementById('present-welcome');
+  const qview = document.getElementById('present-question-view');
+  if (index === -1 || index === null || index === undefined) {
+    welcome.style.display = 'flex';
+    qview.style.display = 'none';
+    return;
+  }
   const q = QUESTIONS[index];
   if (!q) return;
+  welcome.style.display = 'none';
+  qview.style.display = 'block';
   document.getElementById('present-bonus').style.display = index === 20 ? 'inline-block' : 'none';
   document.getElementById('present-qnum').textContent = 'Question ' + (index + 1) + ' / ' + TOTAL_Q;
   document.getElementById('present-question').textContent = q.q;

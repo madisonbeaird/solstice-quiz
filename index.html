@@ -663,6 +663,23 @@
   .host-nav-btn:hover { border-color: var(--gold); color: var(--cream); }
   .host-nav-btn.active-section { background: var(--burgundy); border-color: var(--gold); color: var(--gold-light); }
 
+  .btn-present {
+    width: 100%;
+    margin-top: 0.75rem;
+    padding: 0.6rem;
+    border-radius: 5px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    background: var(--burgundy);
+    border: 1px solid var(--gold);
+    color: var(--gold-light);
+    transition: background 0.15s;
+  }
+
+  .btn-present:hover { background: var(--burgundy-light); }
+
   /* ── HOST RESET / DANGER ── */
   .host-reset {
     padding: 0 1rem 1rem;
@@ -920,6 +937,7 @@
     <div class="host-right-header">
       <div class="host-right-title">✦ Live Leaderboard</div>
       <div class="host-player-count" id="host-player-count">Waiting for players...</div>
+      <button class="btn-present" id="open-present-btn">Open Presentation View ↗</button>
     </div>
     <div class="host-players" id="host-players">
       <div class="empty-state">No players yet.<br>Share the link!</div>
@@ -1180,6 +1198,11 @@ function initHost() {
   controlChannel
     .on('broadcast', { event: 'request_state' }, () => broadcastCurrentQuestion())
     .subscribe((status) => { if (status === 'SUBSCRIBED') broadcastCurrentQuestion(); });
+
+  // open presentation view in a new tab
+  document.getElementById('open-present-btn').addEventListener('click', () => {
+    window.open(location.origin + location.pathname + '?present=1', '_blank');
+  });
 
   // clear-leaderboard flow
   document.getElementById('clear-btn').addEventListener('click', openClearModal);

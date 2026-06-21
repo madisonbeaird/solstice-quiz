@@ -763,7 +763,7 @@
 <script>
 const SUPABASE_URL = 'https://poopsjyrecurnfuulgzu.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBvb3BzanlyZWN1cm5mdXVsZ3p1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIwMTEyMzAsImV4cCI6MjA5NzU4NzIzMH0.rtZckQs9VZpy3v0CXlqTknEZjxdaj1ykrEqQvgWM10M';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const HOST_PASSWORD = 'feuerzange';
 const TOTAL_Q = 21;
 
@@ -826,14 +826,14 @@ async function joinQuiz() {
   btn.textContent = 'Joining...';
 
   // Check if username exists
-  const { data: existing } = await supabase.from('players').select('id,answers').eq('username', username).single();
+  const { data: existing } = await db.from('players').select('id,answers').eq('username', username).single();
 
   if (existing) {
     // Resume
     currentPlayer = { id: existing.id, username };
     answers = existing.answers || {};
   } else {
-    const { data, error } = await supabase.from('players').insert({ username, answers: {}, score: 0, finished: false }).select().single();
+    const { data, error } = await db.from('players').insert({ username, answers: {}, score: 0, finished: false }).select().single();
     if (error) {
       if (error.code === '23505') { setJoinError('That username is taken — pick another!'); btn.disabled = false; btn.textContent = 'Zur Quiz! →'; return; }
       setJoinError('Something went wrong. Try again.'); btn.disabled = false; btn.textContent = 'Zur Quiz! →'; return;
@@ -903,12 +903,12 @@ document.getElementById('btn-back').addEventListener('click', () => {
 
 async function saveProgress() {
   const score = calcScore();
-  await supabase.from('players').update({ answers, score, finished: false }).eq('id', currentPlayer.id);
+      await db.from('players').update({ answers, score, finished: false }).eq('id', currentPlayer.id);
 }
 
 async function submitQuiz() {
   const score = calcScore();
-  await supabase.from('players').update({ answers, score, finished: true }).eq('id', currentPlayer.id);
+      await db.from('players').update({ answers, score, finished: true }).eq('id', currentPlayer.id);
   const tier = TIERS.find(t => score >= t.min);
   document.getElementById('done-score').innerHTML = score + ' <span>/ 21</span>';
   document.getElementById('done-tier').textContent = tier.label;
@@ -943,7 +943,7 @@ function initHost() {
   renderHostSlides();
   loadPlayers();
   // realtime subscription
-  hostChannel = supabase.channel('players-changes')
+      hostChannel = db.channel('players-changes')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, () => loadPlayers())
     .subscribe();
 }
@@ -974,7 +974,7 @@ function renderHostSlides() {
 let allPlayers = [];
 
 async function loadPlayers() {
-  const { data } = await supabase.from('players').select('*').order('score', { ascending: false });
+      const { data } = await db.from('players').select('*').order('score', { ascending: false });
   allPlayers = data || [];
   renderPlayers();
 }
@@ -1006,7 +1006,7 @@ function renderPlayers() {
   filtered.forEach((p, i) => {
     const answered = Object.keys(p.answers || {}).length;
     const pct = Math.round(answered / TOTAL_Q * 100);
-    const card = document.createElement('div');
+    const card = document.createElement('div')
     card.className = 'host-player-card' + (i===0?' top':'') + (p.finished?' finished':'');
     const rankSymbols = ['🥇','🥈','🥉'];
     const rank = i < 3 ? `<span class="rank-badge">${rankSymbols[i]}</span>` : `<span class="rank-badge">#${i+1}</span>`;

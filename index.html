@@ -1110,28 +1110,30 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 const CONTROL_CHANNEL = 'quiz-control'; // private Realtime channel (hosts only)
 
+// Questions and options only. The correct answers live in the Supabase
+// quiz_answers table (question number → letter), readable only by hosts.
 const QUESTIONS = [
-  { q: "What actually IS the winter solstice?", opts: ["The Earth's coldest day of the year","When the Sun takes a personal day","The day druids get their annual performance review","The day when Earth's axial tilt puts your hemisphere furthest from the Sun"], ans: 3 },
-  { q: "How long is the longest night on the winter solstice in Perth, Western Australia?", opts: ["About 14 hours — Perth is basically a vampire's paradise","About 10 hours of darkness","24 hours — the Sun gives up entirely","About 6 hours — it's barely even worth calling it a solstice"], ans: 0 },
-  { q: "The winter solstice was a huge deal in ancient times. Which of these is a real ancient winter solstice celebration?", opts: ["Sunfest — held annually in ancient Greece by people who missed summer","Frosthaven — a Viking festival where they gave their axes names","Saturnalia — a Roman festival of total social chaos and gift-giving","Darkmas — celebrated by the ancient Britons with a nice cup of tea"], ans: 2 },
-  { q: "Stonehenge is famously aligned to the winter solstice. What can you see there on the solstice?", opts: ["The sunset aligning with the central altar stone","The sunrise perfectly framed between the stones — it's on Instagram already","A Druid DJ set, followed by a stone circle rave","Absolutely nothing, due to British weather"], ans: 0 },
-  { q: "After the winter solstice, what happens to the days?", opts: ["They get shorter until the Earth gives up entirely","Nothing changes for several weeks — the Sun is being dramatic","They get longer immediately and dramatically, which is why we celebrate","They slowly get longer — one to four minutes of extra daylight per day"], ans: 3 },
-  { q: "What is Feuerzangenbowle? (Yes, you may need another sip to remember.)", opts: ["A fiery German board game involving tongs and shouting","A type of hot dog served only at winter markets in Frankfurt","A spiced red wine punch made by setting a rum-soaked sugar cone ablaze over it","The name of a famous Black Forest witch — don't say it three times"], ans: 2 },
-  { q: "The sugar cone used in Feuerzangenbowle has a special name. What is it?", opts: ["Feuerstein — meaning fire stone, for obvious reasons","Zuckerhut — which also means 'sugar hat' (extremely charming)","Weihnachtskegelzucker — Christmas cone sugar (Germans love a compound word)","Der Große Brenner — The Great Burner (a title we all aspire to)"], ans: 1 },
-  { q: "There's a famous 1944 German film called 'Die Feuerzangenbowle'. What's it about?", opts: ["A comedy about a grown man who infiltrates a school to experience youth again — fuelled by the punch","A wartime documentary about punch bowl manufacturing shortages","A romantic drama set at a winter market where two people bond over a shared Zuckerhut","An action thriller where the sugar cone goes rogue"], ans: 0 },
-  { q: "The German Advent season involves an Adventskalender (Advent calendar). When does Advent start?", opts: ["December 1st — nice and simple","The first of November — Germans are very prepared","The fourth Sunday before Christmas","Whenever you decide to start eating chocolate for breakfast"], ans: 2 },
-  { q: "Germany's famous Weihnachtsmärkte (Christmas markets) are beloved worldwide. Which city claims to host the oldest one?", opts: ["Berlin — because everything is bigger in Berlin","Munich — they were already hosting Oktoberfest and needed another event","Cologne — directly under the famous cathedral for dramatic effect","Dresden — their Striezelmarkt dates to 1434"], ans: 3 },
-  { q: "In Germany, presents are traditionally delivered by St. Nicholas on which date — not Christmas Day?", opts: ["December 24th at midnight — same as everywhere else","December 6th — children leave boots out the night before","December 21st — on the winter solstice, naturally","December 1st — with the first chocolate from the Advent calendar"], ans: 1 },
-  { q: "German has a word for the melancholy feeling of winter darkness. What is 'Winterdepression' commonly known as in English?", opts: ["The January Blues — everyone gets them","Frostbitten Soul Syndrome — coined in 2003","Darkness Regret — feeling bad about the Sun leaving","Seasonal Affective Disorder (SAD) — an acronym so good it must be intentional"], ans: 3 },
-  { q: "What is the name for the tradition of setting the rum-soaked sugar cone on fire over the punch?", opts: ["Feuerzangenbowle","Zuckerbrennen","Flammenkessel","Glühzucker"], ans: 0 },
-  { q: "What type of rum is traditionally used for Feuerzangenbowle?", opts: ["A premium aged dark rum for the best flavour","Coconut rum, for a tropical twist no German has ever approved of","A high-proof rum (54%+ ABV) — because it needs to actually catch fire","Rum extract — same taste, none of the liability"], ans: 2 },
-  { q: "The 'Yule Log' tradition originally involved actually burning a massive log through the winter solstice. Where did it come from?", opts: ["Medieval Germany — the log represented the old year burning away","France — they turned it into a delicious cake (smarter choice)","Scotland — they ran out of logs and invented whisky instead","Norse and Germanic pagan traditions — the log burned for 12 days"], ans: 3 },
-  { q: "Mulled wine (Glühwein in German) is a winter staple. What does 'Glühwein' literally mean?", opts: ["Hot wine — very on the nose","Glow wine — because it warms you from the inside","Happy wine — Germans in a rare mood","Market wine — because it's mostly sold at Christmas markets"], ans: 1 },
-  { q: "Which ancient civilisation built Newgrange in Ireland — a 5,200-year-old tomb aligned perfectly to the winter solstice sunrise?", opts: ["The Celts — classic Celtic move","The Vikings — they got lost and built something while waiting","The Neolithic Irish — pre-dating the Celts, Stonehenge AND the pyramids","The Romans — they put their stamp on everything eventually"], ans: 2 },
-  { q: "In Scandinavian tradition, the 'Lussinatta' (Lucy Night) is the longest, most dangerous night of the year. What was said to roam the earth?", opts: ["Supernatural beings, ghosts, and the restless dead — all out at once","Trolls looking for unsuspecting hikers","Santa's rejected elves, seeking revenge","Extremely large winter foxes — 'Solstice Foxes' in local legend"], ans: 0 },
-  { q: "How many days per year does Germany's Christmas market season technically cover, from Advent through to the New Year?", opts: ["About 25 days — December only","About 4 weeks — the full Advent period","364 days — Germans really committed after 2020","Up to 6–7 weeks in some cities, starting in mid-November"], ans: 3 },
-  { q: "FINAL QUESTION: What is the most scientifically accurate way to survive the winter solstice?", opts: ["Ration your daylight carefully and file a complaint with the Sun","Gather around fire and warm drinks with people you love — it's literally what our ancestors did","Hibernate until March — science hasn't disproven this","Watch the Feuerzangenbowle film, then make the actual drink — in that order"], ans: 1 },
-  { bonus: true, q: "BONUS QUESTION: What does the German word 'Randalekobold' translate to in English?", opts: ["Chaos Pixie — a fairy that reorganises your kitchen at 3am","Riot Goblin — no further explanation required","Tantrum Elf — a seasonal condition affecting children and some adults","Rampage Gnome — a garden ornament with unresolved anger issues"], ans: 1 },
+  { q: "What actually IS the winter solstice?", opts: ["The Earth's coldest day of the year","When the Sun takes a personal day","The day druids get their annual performance review","The day when Earth's axial tilt puts your hemisphere furthest from the Sun"] },
+  { q: "How long is the longest night on the winter solstice in Perth, Western Australia?", opts: ["About 14 hours — Perth is basically a vampire's paradise","About 10 hours of darkness","24 hours — the Sun gives up entirely","About 6 hours — it's barely even worth calling it a solstice"] },
+  { q: "The winter solstice was a huge deal in ancient times. Which of these is a real ancient winter solstice celebration?", opts: ["Sunfest — held annually in ancient Greece by people who missed summer","Frosthaven — a Viking festival where they gave their axes names","Saturnalia — a Roman festival of total social chaos and gift-giving","Darkmas — celebrated by the ancient Britons with a nice cup of tea"] },
+  { q: "Stonehenge is famously aligned to the winter solstice. What can you see there on the solstice?", opts: ["The sunset aligning with the central altar stone","The sunrise perfectly framed between the stones — it's on Instagram already","A Druid DJ set, followed by a stone circle rave","Absolutely nothing, due to British weather"] },
+  { q: "After the winter solstice, what happens to the days?", opts: ["They get shorter until the Earth gives up entirely","Nothing changes for several weeks — the Sun is being dramatic","They get longer immediately and dramatically, which is why we celebrate","They slowly get longer — one to four minutes of extra daylight per day"] },
+  { q: "What is Feuerzangenbowle? (Yes, you may need another sip to remember.)", opts: ["A fiery German board game involving tongs and shouting","A type of hot dog served only at winter markets in Frankfurt","A spiced red wine punch made by setting a rum-soaked sugar cone ablaze over it","The name of a famous Black Forest witch — don't say it three times"] },
+  { q: "The sugar cone used in Feuerzangenbowle has a special name. What is it?", opts: ["Feuerstein — meaning fire stone, for obvious reasons","Zuckerhut — which also means 'sugar hat' (extremely charming)","Weihnachtskegelzucker — Christmas cone sugar (Germans love a compound word)","Der Große Brenner — The Great Burner (a title we all aspire to)"] },
+  { q: "There's a famous 1944 German film called 'Die Feuerzangenbowle'. What's it about?", opts: ["A comedy about a grown man who infiltrates a school to experience youth again — fuelled by the punch","A wartime documentary about punch bowl manufacturing shortages","A romantic drama set at a winter market where two people bond over a shared Zuckerhut","An action thriller where the sugar cone goes rogue"] },
+  { q: "The German Advent season involves an Adventskalender (Advent calendar). When does Advent start?", opts: ["December 1st — nice and simple","The first of November — Germans are very prepared","The fourth Sunday before Christmas","Whenever you decide to start eating chocolate for breakfast"] },
+  { q: "Germany's famous Weihnachtsmärkte (Christmas markets) are beloved worldwide. Which city claims to host the oldest one?", opts: ["Berlin — because everything is bigger in Berlin","Munich — they were already hosting Oktoberfest and needed another event","Cologne — directly under the famous cathedral for dramatic effect","Dresden — their Striezelmarkt dates to 1434"] },
+  { q: "In Germany, presents are traditionally delivered by St. Nicholas on which date — not Christmas Day?", opts: ["December 24th at midnight — same as everywhere else","December 6th — children leave boots out the night before","December 21st — on the winter solstice, naturally","December 1st — with the first chocolate from the Advent calendar"] },
+  { q: "German has a word for the melancholy feeling of winter darkness. What is 'Winterdepression' commonly known as in English?", opts: ["The January Blues — everyone gets them","Frostbitten Soul Syndrome — coined in 2003","Darkness Regret — feeling bad about the Sun leaving","Seasonal Affective Disorder (SAD) — an acronym so good it must be intentional"] },
+  { q: "What is the name for the tradition of setting the rum-soaked sugar cone on fire over the punch?", opts: ["Feuerzangenbowle","Zuckerbrennen","Flammenkessel","Glühzucker"] },
+  { q: "What type of rum is traditionally used for Feuerzangenbowle?", opts: ["A premium aged dark rum for the best flavour","Coconut rum, for a tropical twist no German has ever approved of","A high-proof rum (54%+ ABV) — because it needs to actually catch fire","Rum extract — same taste, none of the liability"] },
+  { q: "The 'Yule Log' tradition originally involved actually burning a massive log through the winter solstice. Where did it come from?", opts: ["Medieval Germany — the log represented the old year burning away","France — they turned it into a delicious cake (smarter choice)","Scotland — they ran out of logs and invented whisky instead","Norse and Germanic pagan traditions — the log burned for 12 days"] },
+  { q: "Mulled wine (Glühwein in German) is a winter staple. What does 'Glühwein' literally mean?", opts: ["Hot wine — very on the nose","Glow wine — because it warms you from the inside","Happy wine — Germans in a rare mood","Market wine — because it's mostly sold at Christmas markets"] },
+  { q: "Which ancient civilisation built Newgrange in Ireland — a 5,200-year-old tomb aligned perfectly to the winter solstice sunrise?", opts: ["The Celts — classic Celtic move","The Vikings — they got lost and built something while waiting","The Neolithic Irish — pre-dating the Celts, Stonehenge AND the pyramids","The Romans — they put their stamp on everything eventually"] },
+  { q: "In Scandinavian tradition, the 'Lussinatta' (Lucy Night) is the longest, most dangerous night of the year. What was said to roam the earth?", opts: ["Supernatural beings, ghosts, and the restless dead — all out at once","Trolls looking for unsuspecting hikers","Santa's rejected elves, seeking revenge","Extremely large winter foxes — 'Solstice Foxes' in local legend"] },
+  { q: "How many days per year does Germany's Christmas market season technically cover, from Advent through to the New Year?", opts: ["About 25 days — December only","About 4 weeks — the full Advent period","364 days — Germans really committed after 2020","Up to 6–7 weeks in some cities, starting in mid-November"] },
+  { q: "FINAL QUESTION: What is the most scientifically accurate way to survive the winter solstice?", opts: ["Ration your daylight carefully and file a complaint with the Sun","Gather around fire and warm drinks with people you love — it's literally what our ancestors did","Hibernate until March — science hasn't disproven this","Watch the Feuerzangenbowle film, then make the actual drink — in that order"] },
+  { bonus: true, q: "BONUS QUESTION: What does the German word 'Randalekobold' translate to in English?", opts: ["Chaos Pixie — a fairy that reorganises your kitchen at 3am","Riot Goblin — no further explanation required","Tantrum Elf — a seasonal condition affecting children and some adults","Rampage Gnome — a garden ornament with unresolved anger issues"] },
 ];
 
 const TOTAL_Q = QUESTIONS.length;
@@ -1152,6 +1154,7 @@ let hostFilterMode = 'all';
 let hostChannel = null;
 let controlChannel = null;
 let hostCurrentQ = -1; // -1 = welcome screen
+let answerKey = {};     // host only: { questionIndex: optionIndex }
 
 // Escape player-supplied text before putting it in HTML
 function esc(str) {
@@ -1188,18 +1191,19 @@ async function joinQuiz() {
   }
 
   // Resume this browser's existing entry, if any
-  const { data: existing } = await db.from('players').select('id,username,answers,finished').eq('user_id', session.user.id).maybeSingle();
+  const { data: existing } = await db.from('players').select('id,username,finished,score').eq('user_id', session.user.id).maybeSingle();
 
   if (existing) {
     currentPlayer = { id: existing.id, username: existing.username };
-    answers = existing.answers || {};
     if (existing.finished) {
       document.getElementById('display-username').textContent = '✦ ' + existing.username;
-      showDone(calcScore());
+      showDone(existing.score);
       return;
     }
+    const { data: saved } = await db.rpc('my_answers');
+    answers = saved || {};
   } else {
-    const { data, error } = await db.from('players').insert({ username, answers: {}, score: 0, finished: false }).select().single();
+    const { data, error } = await db.from('players').insert({ username, answers: {}, finished: false }).select('id').single();
     if (error) {
       if (error.code === '23505') { setJoinError('That username is taken — pick another!'); resetBtn(); return; }
       setJoinError('Something went wrong. Try again.'); resetBtn(); return;
@@ -1268,14 +1272,19 @@ document.getElementById('btn-back').addEventListener('click', () => {
 });
 
 async function saveProgress() {
-  const score = calcScore();
-  await db.from('players').update({ answers, score, finished: false }).eq('id', currentPlayer.id);
+  // Only answers are saved; the score stays hidden until the player submits.
+  await db.from('players').update({ answers }).eq('id', currentPlayer.id);
 }
 
 async function submitQuiz() {
-  const score = calcScore();
-  await db.from('players').update({ answers, score, finished: true }).eq('id', currentPlayer.id);
-  showDone(score);
+  const btn = document.getElementById('btn-next');
+  btn.disabled = true;
+  // The database marks the answers against the hidden key and returns the score.
+  const { data, error } = await db.from('players').update({ answers, finished: true })
+    .eq('id', currentPlayer.id).select('score').single();
+  btn.disabled = false;
+  if (error) { alert('Could not submit — check your connection and try again.'); return; }
+  showDone(data.score);
 }
 
 function showDone(score) {
@@ -1286,9 +1295,6 @@ function showDone(score) {
   show('done-screen');
 }
 
-function calcScore() {
-  return QUESTIONS.reduce((acc, q, i) => acc + (answers[i] === q.ans ? 1 : 0), 0);
-}
 
 // ── HOST ──
 const isHost = window.location.hash === '#host' || window.location.pathname.endsWith('/host') || new URLSearchParams(window.location.search).get('host') === '1';
@@ -1333,7 +1339,14 @@ async function setupLogin(prefix, onSuccess) {
 if (isHost) setupLogin('host', initHost);
 else if (isPresent) setupLogin('present', initPresent);
 
-function initHost() {
+async function loadAnswerKey() {
+  const { data } = await db.from('quiz_answers').select('question,answer');
+  answerKey = {};
+  (data || []).forEach(r => { answerKey[r.question - 1] = 'ABCD'.indexOf(r.answer); });
+}
+
+async function initHost() {
+  await loadAnswerKey();
   renderHostSlides();
   loadPlayers();
   // realtime subscription
@@ -1410,6 +1423,7 @@ function renderHostSlides() {
   container.appendChild(welcome);
 
   QUESTIONS.forEach((q, i) => {
+    const ans = answerKey[i];
     const div = document.createElement('div');
     div.className = 'host-slide';
     div.id = 'host-slide-' + i;
@@ -1417,9 +1431,9 @@ function renderHostSlides() {
       <div class="host-slide-num">${i+1}</div>
       <div class="host-slide-q">${q.q}</div>
       <div class="host-opts">
-        ${q.opts.map((o,j) => `<div class="host-opt${j===q.ans?' correct-opt':''}"><span class="host-opt-letter">${LETTERS[j]}</span>${o}</div>`).join('')}
+        ${q.opts.map((o,j) => `<div class="host-opt${j===ans?' correct-opt':''}"><span class="host-opt-letter">${LETTERS[j]}</span>${o}</div>`).join('')}
       </div>
-      <div class="host-answer-reveal">✦ Answer: ${LETTERS[q.ans]} — ${q.opts[q.ans]}</div>
+      <div class="host-answer-reveal">${ans >= 0 ? `✦ Answer: ${LETTERS[ans]} — ${q.opts[ans]}` : '⚠ No answer set in quiz_answers'}</div>
     `;
     div.addEventListener('click', () => {
       document.querySelectorAll('.host-slide').forEach(s => s.classList.remove('current'));
@@ -1434,7 +1448,7 @@ function renderHostSlides() {
 let allPlayers = [];
 
 async function loadPlayers() {
-  const { data } = await db.from('players').select('*').order('score', { ascending: false });
+  const { data } = await db.from('players').select('id,username,score,finished,answered').order('finished', { ascending: false }).order('score', { ascending: false });
   allPlayers = data || [];
   renderPlayers();
 }
@@ -1478,16 +1492,16 @@ function tierOf(score) {
 }
 
 function playerCard(p, globalRank) {
-  const answered = Object.keys(p.answers || {}).length;
+  const answered = Number(p.answered) || 0;
   const pct = Math.round(answered / TOTAL_Q * 100);
   const card = document.createElement('div');
   card.className = 'host-player-card' + (globalRank===0?' top':'') + (p.finished?' finished':'');
   const rankSymbols = ['🥇','🥈','🥉'];
-  const rank = globalRank < 3 ? `<span class="rank-badge">${rankSymbols[globalRank]}</span>` : `<span class="rank-badge">#${globalRank+1}</span>`;
+  const rank = globalRank === undefined ? '' : globalRank < 3 ? `<span class="rank-badge">${rankSymbols[globalRank]}</span>` : `<span class="rank-badge">#${globalRank+1}</span>`;
   card.innerHTML = `
     <div class="host-player-top-row">
       <div class="host-player-name">${rank}${esc(p.username)}</div>
-      <div class="host-player-score">${Number(p.score) || 0}/${TOTAL_Q}</div>
+      <div class="host-player-score">${p.finished ? (Number(p.score) || 0) + '/' + TOTAL_Q : '…'}</div>
     </div>
     <div class="host-player-meta">${p.finished ? '✓ Finished' : answered + ' answered · ' + pct + '%'}</div>
     <div class="host-player-bar-track">
@@ -1500,9 +1514,9 @@ function playerCard(p, globalRank) {
 function renderTiered(container, players) {
   container.innerHTML = '';
   const rankOf = new Map();
-  players.forEach((p, i) => rankOf.set(p, i));
+  players.filter(p => p.finished).forEach((p, i) => rankOf.set(p, i));
   LEADER_TIERS.forEach((t, ti) => {
-    const group = players.filter(p => tierOf(p.score) === ti);
+    const group = players.filter(p => p.finished && tierOf(p.score) === ti);
     if (group.length === 0) return;
     const header = document.createElement('div');
     header.className = 'tier-header tier-' + t.key;
@@ -1510,6 +1524,14 @@ function renderTiered(container, players) {
     container.appendChild(header);
     group.forEach(p => container.appendChild(playerCard(p, rankOf.get(p))));
   });
+  const playing = players.filter(p => !p.finished);
+  if (playing.length) {
+    const header = document.createElement('div');
+    header.className = 'tier-header tier-mittelfeld';
+    header.innerHTML = `Still playing <span class="tier-en">(${playing.length})</span>`;
+    container.appendChild(header);
+    playing.forEach(p => container.appendChild(playerCard(p, rankOf.get(p))));
+  }
 }
 
 window.hostFilter = hostFilter;
@@ -1565,7 +1587,7 @@ function renderPresentQuestion(index) {
 }
 
 async function loadPresentPlayers() {
-  const { data } = await db.from('players').select('*').order('score', { ascending: false });
+  const { data } = await db.from('players').select('id,username,score,finished,answered').order('finished', { ascending: false }).order('score', { ascending: false });
   allPlayers = data || [];
   renderPresentPlayers();
 }

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Winter Solstice Quiz</title>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Lato:wght@300;400;700&display=swap');
@@ -1008,7 +1008,8 @@
   <div id="host-login">
     <div class="host-login-box">
       <h2>Host Access</h2>
-      <input id="host-pw-input" class="username-input" type="password" placeholder="Password" style="margin-bottom:1rem">
+      <input id="host-email-input" class="username-input" type="email" placeholder="Host email" autocomplete="username" style="margin-bottom:1rem">
+      <input id="host-pw-input" class="username-input" type="password" placeholder="Password" autocomplete="current-password" style="margin-bottom:1rem">
       <button id="host-pw-btn" class="btn-primary">Enter</button>
       <p id="host-pw-error" class="error-msg"></p>
     </div>
@@ -1057,7 +1058,8 @@
   <div id="present-login">
     <div class="host-login-box">
       <h2>Presentation Access</h2>
-      <input id="present-pw-input" class="username-input" type="password" placeholder="Password" style="margin-bottom:1rem">
+      <input id="present-email-input" class="username-input" type="email" placeholder="Host email" autocomplete="username" style="margin-bottom:1rem">
+      <input id="present-pw-input" class="username-input" type="password" placeholder="Password" autocomplete="current-password" style="margin-bottom:1rem">
       <button id="present-pw-btn" class="btn-primary">Enter</button>
       <p id="present-pw-error" class="error-msg"></p>
     </div>
@@ -1096,11 +1098,17 @@
 </div>
 
 <script>
+// ═══════════════════════════════════════════════════════════════════════════
+// CONFIG — change these when reusing this quiz for a new event.
+// The anon key is designed to be public: access is enforced by the Row Level
+// Security policies in supabase/setup.sql, NOT by keeping this key secret.
+// Host login uses Supabase Auth (Dashboard → Authentication → Users) plus the
+// quiz_hosts table. There is no password in this file.
+// ═══════════════════════════════════════════════════════════════════════════
 const SUPABASE_URL = 'https://poopsjyrecurnfuulgzu.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBvb3BzanlyZWN1cm5mdXVsZ3p1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIwMTEyMzAsImV4cCI6MjA5NzU4NzIzMH0.rtZckQs9VZpy3v0CXlqTknEZjxdaj1ykrEqQvgWM10M';
 const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-const HOST_PASSWORD = 'feuerzange';
-const TOTAL_Q = 21;
+const CONTROL_CHANNEL = 'quiz-control'; // private Realtime channel (hosts only)
 
 const QUESTIONS = [
   { q: "What actually IS the winter solstice?", opts: ["The Earth's coldest day of the year","When the Sun takes a personal day","The day druids get their annual performance review","The day when Earth's axial tilt puts your hemisphere furthest from the Sun"], ans: 3 },
@@ -1123,9 +1131,10 @@ const QUESTIONS = [
   { q: "In Scandinavian tradition, the 'Lussinatta' (Lucy Night) is the longest, most dangerous night of the year. What was said to roam the earth?", opts: ["Supernatural beings, ghosts, and the restless dead — all out at once","Trolls looking for unsuspecting hikers","Santa's rejected elves, seeking revenge","Extremely large winter foxes — 'Solstice Foxes' in local legend"], ans: 0 },
   { q: "How many days per year does Germany's Christmas market season technically cover, from Advent through to the New Year?", opts: ["About 25 days — December only","About 4 weeks — the full Advent period","364 days — Germans really committed after 2020","Up to 6–7 weeks in some cities, starting in mid-November"], ans: 3 },
   { q: "FINAL QUESTION: What is the most scientifically accurate way to survive the winter solstice?", opts: ["Ration your daylight carefully and file a complaint with the Sun","Gather around fire and warm drinks with people you love — it's literally what our ancestors did","Hibernate until March — science hasn't disproven this","Watch the Feuerzangenbowle film, then make the actual drink — in that order"], ans: 1 },
-  { q: "BONUS QUESTION: What does the German word 'Randalekobold' translate to in English?", opts: ["Chaos Pixie — a fairy that reorganises your kitchen at 3am","Riot Goblin — no further explanation required","Tantrum Elf — a seasonal condition affecting children and some adults","Rampage Gnome — a garden ornament with unresolved anger issues"], ans: 1 },
+  { bonus: true, q: "BONUS QUESTION: What does the German word 'Randalekobold' translate to in English?", opts: ["Chaos Pixie — a fairy that reorganises your kitchen at 3am","Riot Goblin — no further explanation required","Tantrum Elf — a seasonal condition affecting children and some adults","Rampage Gnome — a garden ornament with unresolved anger issues"], ans: 1 },
 ];
 
+const TOTAL_Q = QUESTIONS.length;
 const LETTERS = ['A','B','C','D'];
 
 const TIERS = [
@@ -1144,6 +1153,11 @@ let hostChannel = null;
 let controlChannel = null;
 let hostCurrentQ = -1; // -1 = welcome screen
 
+// Escape player-supplied text before putting it in HTML
+function esc(str) {
+  return String(str ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
 // ── SCREENS ──
 function show(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -1157,29 +1171,44 @@ document.getElementById('username-input').addEventListener('keydown', e => { if 
 async function joinQuiz() {
   const raw = document.getElementById('username-input').value.trim();
   if (!raw) { setJoinError('Enter a username to continue.'); return; }
+  if (raw.length > 30) { setJoinError('Keep it to 30 characters or fewer.'); return; }
   const username = raw;
   const btn = document.getElementById('join-btn');
+  const resetBtn = () => { btn.disabled = false; btn.textContent = 'Zur Quiz! →'; };
   btn.disabled = true;
   btn.textContent = 'Joining...';
 
-  // Check if username exists
-  const { data: existing } = await db.from('players').select('id,answers').eq('username', username).single();
+  // Each player gets an anonymous Supabase session; the database only lets
+  // a session edit its own row.
+  let { data: { session } } = await db.auth.getSession();
+  if (!session) {
+    const { data, error } = await db.auth.signInAnonymously();
+    if (error) { setJoinError('Could not connect. Try again.'); resetBtn(); return; }
+    session = data.session;
+  }
+
+  // Resume this browser's existing entry, if any
+  const { data: existing } = await db.from('players').select('id,username,answers,finished').eq('user_id', session.user.id).maybeSingle();
 
   if (existing) {
-    // Resume
-    currentPlayer = { id: existing.id, username };
+    currentPlayer = { id: existing.id, username: existing.username };
     answers = existing.answers || {};
+    if (existing.finished) {
+      document.getElementById('display-username').textContent = '✦ ' + existing.username;
+      showDone(calcScore());
+      return;
+    }
   } else {
     const { data, error } = await db.from('players').insert({ username, answers: {}, score: 0, finished: false }).select().single();
     if (error) {
-      if (error.code === '23505') { setJoinError('That username is taken — pick another!'); btn.disabled = false; btn.textContent = 'Zur Quiz! →'; return; }
-      setJoinError('Something went wrong. Try again.'); btn.disabled = false; btn.textContent = 'Zur Quiz! →'; return;
+      if (error.code === '23505') { setJoinError('That username is taken — pick another!'); resetBtn(); return; }
+      setJoinError('Something went wrong. Try again.'); resetBtn(); return;
     }
     currentPlayer = { id: data.id, username };
     answers = {};
   }
 
-  document.getElementById('display-username').textContent = '✦ ' + username;
+  document.getElementById('display-username').textContent = '✦ ' + currentPlayer.username;
   currentQ = 0;
   renderQuestion();
   show('quiz-screen');
@@ -1190,7 +1219,7 @@ function setJoinError(msg) { document.getElementById('join-error').textContent =
 // ── QUIZ ──
 function renderQuestion() {
   const q = QUESTIONS[currentQ];
-  const isBonus = currentQ === 20;
+  const isBonus = !!q.bonus;
   document.getElementById('bonus-badge').style.display = isBonus ? 'block' : 'none';
   document.getElementById('q-num').textContent = currentQ + 1;
   document.getElementById('question-text').textContent = q.q;
@@ -1240,14 +1269,18 @@ document.getElementById('btn-back').addEventListener('click', () => {
 
 async function saveProgress() {
   const score = calcScore();
-      await db.from('players').update({ answers, score, finished: false }).eq('id', currentPlayer.id);
+  await db.from('players').update({ answers, score, finished: false }).eq('id', currentPlayer.id);
 }
 
 async function submitQuiz() {
   const score = calcScore();
-      await db.from('players').update({ answers, score, finished: true }).eq('id', currentPlayer.id);
+  await db.from('players').update({ answers, score, finished: true }).eq('id', currentPlayer.id);
+  showDone(score);
+}
+
+function showDone(score) {
   const tier = TIERS.find(t => score >= t.min);
-  document.getElementById('done-score').innerHTML = score + ' <span>/ 21</span>';
+  document.getElementById('done-score').innerHTML = score + ' <span>/ ' + TOTAL_Q + '</span>';
   document.getElementById('done-tier').textContent = tier.label;
   document.getElementById('done-desc').textContent = tier.desc;
   show('done-screen');
@@ -1261,36 +1294,55 @@ function calcScore() {
 const isHost = window.location.hash === '#host' || window.location.pathname.endsWith('/host') || new URLSearchParams(window.location.search).get('host') === '1';
 const isPresent = window.location.hash === '#present' || window.location.pathname.endsWith('/present') || new URLSearchParams(window.location.search).get('present') === '1';
 
-if (isHost) {
-  show('host-screen');
-  document.getElementById('host-pw-btn').addEventListener('click', checkHostPw);
-  document.getElementById('host-pw-input').addEventListener('keydown', e => { if (e.key === 'Enter') checkHostPw(); });
-} else if (isPresent) {
-  show('present-screen');
-  document.getElementById('present-pw-btn').addEventListener('click', checkPresentPw);
-  document.getElementById('present-pw-input').addEventListener('keydown', e => { if (e.key === 'Enter') checkPresentPw(); });
+// Host check happens in the database (is_quiz_host()), not in this page.
+async function isSignedInHost() {
+  const { data: { session } } = await db.auth.getSession();
+  if (!session || session.user.is_anonymous) return false;
+  const { data, error } = await db.rpc('is_quiz_host');
+  return !error && data === true;
 }
 
-function checkHostPw() {
-  const pw = document.getElementById('host-pw-input').value;
-  if (pw === HOST_PASSWORD) {
-    document.getElementById('host-login').classList.add('hidden');
-    initHost();
-  } else {
-    document.getElementById('host-pw-error').textContent = 'Wrong password.';
+async function hostLogin(prefix, onSuccess) {
+  const email = document.getElementById(prefix + '-email-input').value.trim();
+  const password = document.getElementById(prefix + '-pw-input').value;
+  const errEl = document.getElementById(prefix + '-pw-error');
+  errEl.textContent = '';
+  const { error } = await db.auth.signInWithPassword({ email, password });
+  if (error) { errEl.textContent = 'Wrong email or password.'; return; }
+  if (!(await isSignedInHost())) {
+    await db.auth.signOut();
+    errEl.textContent = 'This account is not a quiz host.';
+    return;
   }
+  document.getElementById(prefix + '-login').classList.add('hidden');
+  onSuccess();
 }
+
+async function setupLogin(prefix, onSuccess) {
+  show(prefix + '-screen');
+  if (await isSignedInHost()) {           // already signed in (e.g. opened from host tab)
+    document.getElementById(prefix + '-login').classList.add('hidden');
+    onSuccess();
+    return;
+  }
+  const go = () => hostLogin(prefix, onSuccess);
+  document.getElementById(prefix + '-pw-btn').addEventListener('click', go);
+  document.getElementById(prefix + '-pw-input').addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+}
+
+if (isHost) setupLogin('host', initHost);
+else if (isPresent) setupLogin('present', initPresent);
 
 function initHost() {
   renderHostSlides();
   loadPlayers();
   // realtime subscription
-      hostChannel = db.channel('players-changes')
+  hostChannel = db.channel('players-changes')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, () => loadPlayers())
     .subscribe();
 
   // control channel: drives the presentation view's current question
-  controlChannel = db.channel('quiz-control');
+  controlChannel = db.channel(CONTROL_CHANNEL, { config: { private: true } });
   controlChannel
     .on('broadcast', { event: 'request_state' }, () => broadcastCurrentQuestion())
     .subscribe((status) => { if (status === 'SUBSCRIBED') broadcastCurrentQuestion(); });
@@ -1382,7 +1434,7 @@ function renderHostSlides() {
 let allPlayers = [];
 
 async function loadPlayers() {
-      const { data } = await db.from('players').select('*').order('score', { ascending: false });
+  const { data } = await db.from('players').select('*').order('score', { ascending: false });
   allPlayers = data || [];
   renderPlayers();
 }
@@ -1434,8 +1486,8 @@ function playerCard(p, globalRank) {
   const rank = globalRank < 3 ? `<span class="rank-badge">${rankSymbols[globalRank]}</span>` : `<span class="rank-badge">#${globalRank+1}</span>`;
   card.innerHTML = `
     <div class="host-player-top-row">
-      <div class="host-player-name">${rank}${p.username}</div>
-      <div class="host-player-score">${p.score}/${TOTAL_Q}</div>
+      <div class="host-player-name">${rank}${esc(p.username)}</div>
+      <div class="host-player-score">${Number(p.score) || 0}/${TOTAL_Q}</div>
     </div>
     <div class="host-player-meta">${p.finished ? '✓ Finished' : answered + ' answered · ' + pct + '%'}</div>
     <div class="host-player-bar-track">
@@ -1463,16 +1515,6 @@ function renderTiered(container, players) {
 window.hostFilter = hostFilter;
 
 // ── PRESENTATION ──
-function checkPresentPw() {
-  const pw = document.getElementById('present-pw-input').value;
-  if (pw === HOST_PASSWORD) {
-    document.getElementById('present-login').classList.add('hidden');
-    initPresent();
-  } else {
-    document.getElementById('present-pw-error').textContent = 'Wrong password.';
-  }
-}
-
 function initPresent() {
   renderJoinQR();
   renderPresentQuestion(-1);
@@ -1482,7 +1524,7 @@ function initPresent() {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, () => loadPresentPlayers())
     .subscribe();
   // current question, driven by the host screen
-  controlChannel = db.channel('quiz-control');
+  controlChannel = db.channel(CONTROL_CHANNEL, { config: { private: true } });
   controlChannel
     .on('broadcast', { event: 'set_question' }, ({ payload }) => renderPresentQuestion(payload.q))
     .subscribe((status) => { if (status === 'SUBSCRIBED') controlChannel.send({ type: 'broadcast', event: 'request_state' }); });
@@ -1509,7 +1551,7 @@ function renderPresentQuestion(index) {
   if (!q) return;
   welcome.style.display = 'none';
   qview.style.display = 'block';
-  document.getElementById('present-bonus').style.display = index === 20 ? 'inline-block' : 'none';
+  document.getElementById('present-bonus').style.display = q.bonus ? 'inline-block' : 'none';
   document.getElementById('present-qnum').textContent = 'Question ' + (index + 1) + ' / ' + TOTAL_Q;
   document.getElementById('present-question').textContent = q.q;
   const opts = document.getElementById('present-opts');

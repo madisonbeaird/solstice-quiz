@@ -87,3 +87,52 @@ create policy "quiz hosts receive control" on realtime.messages
 create policy "quiz hosts send control" on realtime.messages
   for insert to authenticated
   with check (realtime.topic() = 'quiz-control' and public.is_quiz_host());
+
+-- ═══ Hidden answer key + server-side scoring ═══════════════════════════════
+-- Fill in the answers in Table Editor → quiz_answers (question 1, 2, 3… → A/B/C/D).
+-- Never commit the answers to this repo: it is public.
+create table if not exists public.quiz_answers (
+  question integer primary key check (question > 0),
+  answer   text not null check (answer in ('A','B','C','D'))
+);
+alter table public.quiz_answers enable row level security;
+drop policy if exists "hosts read answer key" on public.quiz_answers;
+create policy "hosts read answer key" on public.quiz_answers
+  for select to authenticated using (public.is_quiz_host());
+
+alter table public.players add column if not exists answered integer default 0;
+
+-- Score is 0 until the player submits, then marked against the hidden key.
+create or replace function public.players_compute_score()
+returns trigger
+language plpgsql security definer set search_path = ''
+as $$
+begin
+  new.answered := (select count(*) from jsonb_object_keys(coalesce(new.answers, '{}'::jsonb)));
+  if new.finished then
+    new.score := (select count(*) from public.quiz_answers a
+                  where new.answers ->> (a.question - 1)::text = (ascii(a.answer) - 65)::text);
+  else
+    new.score := 0;
+  end if;
+  return new;
+end $$;
+drop trigger if exists players_compute_score on public.players;
+create trigger players_compute_score before insert or update on public.players
+  for each row execute function public.players_compute_score();
+
+-- Players' picks are private: everyone sees name/progress/score, not answers.
+revoke select on public.players from anon, authenticated;
+grant select (id, username, score, finished, answered, created_at, user_id)
+  on public.players to anon, authenticated;
+
+-- A player can fetch their own saved picks (to resume after a refresh)
+create or replace function public.my_answers()
+returns jsonb
+language sql stable security definer set search_path = ''
+as $$ select answers from public.players where user_id = auth.uid() $$;
+revoke all on function public.my_answers() from public;
+grant execute on function public.my_answers() to authenticated;
+
+-- If you fix an answer after people have submitted, re-mark everyone with:
+--   update public.players set finished = finished where finished;
